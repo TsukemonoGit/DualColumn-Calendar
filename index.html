@@ -248,38 +248,49 @@
       /**
        * 内閣府の祝日CSVを取得・パース（デバッグログ付き）
        */
-     async function fetchHolidays() {
+     /**
+     * Googleカレンダーの公開公開祝日カレンダーから取得
+     * CORS制限がなく、GitHub Pages上でも直接取得可能
+     */
+    async function fetchHolidays(year) {
         const overlay = document.getElementById('loading-overlay');
         overlay.style.display = 'flex';
         
         try {
-            const targetUrl = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
-            // 別のプロキシ（y-combinator系のcors-proxy、または shcors）を試行
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            // Google Calendar API の日本の祝日データ (公式ID: japanese__ja@holiday.calendar.google.com)
+            // 公開データをAPIキーなしで取得できるiCal形式をパース、または特定の年のデータを取得
+            const calendarId = 'japanese__ja@holiday.calendar.google.com';
+            const timeMin = `${year}-01-01T00:00:00Z`;
+            const timeMax = `${year}-12-31T23:59:59Z`;
             
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error('CORSプロキシエラー');
+            // APIキーなしでアクセス可能なパブリックな取得先
+            // ※本来はAPIキーが必要だが、GoogleはGoogle Calendarの埋め込み用URL等を提供している
+            // ここでは最も確実な「ical形式のパース」ではなく、Web上で公開されているJSONプロキシ（安定版）を使用
+            const url = `https://www.googleapis.com/calendar/v3/users/me/calendarList`; 
+            
+            // 修正：Google APIが直接叩けない場合を想定し、
+            // Nager.Date や Abstract API などの「祝日専用の無料API」に切り替えます
+            const nagerUrl = `https://date.nager.at/api/v3/PublicHolidays/${year}/JP`;
+            
+            const response = await fetch(nagerUrl);
+            if (!response.ok) throw new Error('API Response Error');
 
-            const arrayBuffer = await response.arrayBuffer();
-            const decoder = new TextDecoder('shift-jis');
-            const text = decoder.decode(arrayBuffer);
+            const data = await response.json();
             
-            const lines = text.split('\n');
+            // 既存の祝日データをリセット
             holidays = {};
-            for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(',');
-                if (parts.length >= 2) {
-                    const d = new Date(parts[0].trim());
-                    if (!isNaN(d.getTime())) {
-                        const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-                        holidays[key] = parts[1].replace(/\r/g, '').trim();
-                    }
-                }
-            }
-            console.log("祝日データ読込完了");
+            
+            data.forEach(holiday => {
+                // holiday.date は "YYYY-MM-DD" 形式
+                const d = new Date(holiday.date);
+                const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+                holidays[key] = holiday.localName;
+            });
+
+            console.log(`${year}年の祝日を${data.length}件取得しました`);
         } catch (e) {
             console.error("取得失敗:", e);
-            document.getElementById('loading-text').innerText = "祝日データの取得に失敗しました。";
+            document.getElementById('loading-text').innerText = "祝日APIの取得に失敗しました。";
             setTimeout(() => { overlay.style.display = 'none'; }, 2000);
             return false;
         }
@@ -287,7 +298,7 @@
         return true;
     }
 
-    async function generateCalendar() {
+   async function generateCalendar() {
         const yearInput = document.getElementById("yearInput");
         const btn = document.querySelector("button[onclick^='generateCalendar']");
         const year = parseInt(yearInput.value);
@@ -295,13 +306,12 @@
         btn.disabled = true;
         btn.innerText = "取得中...";
 
-        if (Object.keys(holidays).length === 0) {
-            const success = await fetchHolidays();
-            if (!success) {
-                btn.disabled = false;
-                btn.innerText = "生成・更新";
-                return;
-            }
+        // 入力された年に基づいてその都度APIを叩く
+        const success = await fetchHolidays(year);
+        if (!success) {
+            btn.disabled = false;
+            btn.innerText = "生成・更新";
+            return;
         }
 
         const output = document.getElementById("output");
