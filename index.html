@@ -217,45 +217,41 @@
 
     <script>
       let holidays = {};
+
       /**
        * 内閣府の祝日CSVを取得・パース
-       * プロキシを経由してCORS制約を回避
        */
-     async function fetchHolidays() {
+      async function fetchHolidays() {
         try {
-            const targetUrl = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
-            // allorigins プロキシを使用
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-            
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error('Network error');
+          const targetUrl = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+          
+          const response = await fetch(proxyUrl);
+          if (!response.ok) throw new Error('Network error');
 
-            const data = await response.json();
-            // alloriginsはレスポンスの文字列を contents プロパティに格納する
-            const text = data.contents;
-            
-            const lines = text.split('\n');
-            holidays = {};
-            for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(',');
-                if (parts.length >= 2) {
-                    const dateStr = parts[0].trim();
-                    const name = parts[1].trim();
-                    
-                    // 日付キーの整形
-                    const d = new Date(dateStr);
-                    if (!isNaN(d.getTime())) {
-                        const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-                        holidays[key] = name;
-                    }
-                }
+          const data = await response.json();
+          const text = data.contents;
+          
+          const lines = text.split('\n');
+          holidays = {};
+          for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',');
+            if (parts.length >= 2) {
+              const dateStr = parts[0].trim();
+              const name = parts[1].replace(/\r/g, '').trim(); // 改行コードを除去
+              
+              const d = new Date(dateStr);
+              if (!isNaN(d.getTime())) {
+                // キーを "2026/1/1" の形式（ゼロ埋めなし）に統一
+                const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+                holidays[key] = name;
+              }
             }
+          }
         } catch (e) {
-            console.error('祝日取得失敗:', e);
-            // 失敗時にユーザーに通知（任意）
-            // alert('祝日データの取得に失敗しました。');
+          console.error('祝日取得失敗:', e);
         }
-    }
+      }
 
       /**
        * 指定した月の日数と情報を取得
@@ -267,10 +263,8 @@
 
         for (let d = 1; d <= lastDay; d++) {
           const dateObj = new Date(year, month - 1, d);
-          const yyyy = dateObj.getFullYear();
-          const mm = String(dateObj.getMonth() + 1).padStart(1, "0");
-          const dd = String(dateObj.getDate()).padStart(1, "0");
-          const dateKey = `${yyyy}/${mm}/${dd}`;
+          // キーを fetchHolidays と同じ "YYYY/M/D" 形式にする
+          const dateKey = `${year}/${month}/${d}`;
 
           const dayIdx = dateObj.getDay();
           const isHoliday = !!holidays[dateKey];
@@ -286,23 +280,15 @@
         return days;
       }
 
-      /**
-       * カレンダーHTMLの生成
-       */
       function createMonthHtml(year, month) {
         const days = getMonthData(year, month);
-
         let leftColHtml = "";
         let rightColHtml = "";
 
-        // 左列：1日～16日（必ず16回ループ）
         for (let i = 0; i < 16; i++) {
           leftColHtml += createDayRowHtml(days[i]);
         }
-
-        // 右列：17日～32日相当（必ず16回ループさせて高さを揃える）
         for (let i = 16; i < 32; i++) {
-          // days[i] が存在しない（月末以降）場合は、createDayRowHtmlが空の行を返します
           rightColHtml += createDayRowHtml(days[i]);
         }
 
@@ -322,18 +308,13 @@
       }
 
       function createDayRowHtml(dayData) {
-        if (!dayData) {
-          return '<div class="day-row"></div>'; // 空行
-        }
+        if (!dayData) return '<div class="day-row"></div>';
 
         let weekClass = "";
         if (dayData.dayIdx === 0 || dayData.isHoliday) weekClass = "text-sun";
         else if (dayData.dayIdx === 6) weekClass = "text-sat";
 
-        const rowClass =
-          dayData.dayIdx === 0 || dayData.isHoliday || dayData.dayIdx === 6
-            ? "bg-holiday"
-            : "";
+        const rowClass = (dayData.dayIdx === 0 || dayData.isHoliday || dayData.dayIdx === 6) ? "bg-holiday" : "";
 
         return `
             <div class="day-row ${rowClass}">
@@ -345,7 +326,9 @@
       }
 
       async function generateCalendar() {
-        const year = parseInt(document.getElementById("yearInput").value);
+        const yearInput = document.getElementById("yearInput");
+        const year = parseInt(yearInput.value);
+        
         if (Object.keys(holidays).length === 0) {
           await fetchHolidays();
         }
@@ -356,13 +339,11 @@
         for (let m = 1; m <= 12; m += 2) {
           const page = document.createElement("div");
           page.className = "page";
-          page.innerHTML =
-            createMonthHtml(year, m) + createMonthHtml(year, m + 1);
+          page.innerHTML = createMonthHtml(year, m) + createMonthHtml(year, m + 1);
           output.appendChild(page);
         }
       }
 
-      // 初回実行
       window.onload = generateCalendar;
     </script>
   </body>
