@@ -217,55 +217,45 @@
 
     <script>
       let holidays = {};
-
-      /**
-       * 内閣府の祝日CSVを取得・パース
-       */
       /**
        * 内閣府の祝日CSVを取得・パース
        * プロキシを経由してCORS制約を回避
        */
-      async function fetchHolidays() {
+     async function fetchHolidays() {
         try {
-          // CORS回避のためのプロキシURLを付与
-          const targetUrl =
-            "https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv";
-          const proxyUrl =
-            "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+            const targetUrl = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
+            // allorigins プロキシを使用
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+            
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error('Network error');
 
-          const response = await fetch(proxyUrl);
-
-          if (!response.ok) throw new Error("Network response was not ok");
-
-          const arrayBuffer = await response.arrayBuffer();
-          const decoder = new TextDecoder("shift-jis");
-          const text = decoder.decode(arrayBuffer);
-
-          const lines = text.split("\n");
-          holidays = {};
-
-          for (let i = 1; i < lines.length; i++) {
-            const parts = lines[i].split(",");
-            if (parts.length >= 2) {
-              // CSVの形式: "2026/1/1,元日"
-              const dateStr = parts[0].trim();
-              const name = parts[1].trim();
-
-              // 日付のゼロ埋めを解除してキーを統一（例: 2026/01/01 -> 2026/1/1）
-              const d = new Date(dateStr);
-              if (!isNaN(d.getTime())) {
-                const formattedKey = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-                holidays[formattedKey] = name;
-              }
+            const data = await response.json();
+            // alloriginsはレスポンスの文字列を contents プロパティに格納する
+            const text = data.contents;
+            
+            const lines = text.split('\n');
+            holidays = {};
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',');
+                if (parts.length >= 2) {
+                    const dateStr = parts[0].trim();
+                    const name = parts[1].trim();
+                    
+                    // 日付キーの整形
+                    const d = new Date(dateStr);
+                    if (!isNaN(d.getTime())) {
+                        const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+                        holidays[key] = name;
+                    }
+                }
             }
-          }
         } catch (e) {
-          console.error("祝日データの取得に失敗しました。", e);
-          alert(
-            "祝日データの取得に失敗しました。インターネット接続を確認するか、しばらく時間をおいて試してください。",
-          );
+            console.error('祝日取得失敗:', e);
+            // 失敗時にユーザーに通知（任意）
+            // alert('祝日データの取得に失敗しました。');
         }
-      }
+    }
 
       /**
        * 指定した月の日数と情報を取得
