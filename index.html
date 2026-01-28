@@ -204,9 +204,36 @@
         color: var(--gray-light);
         text-align: center;
       }
+      /* 読み込み中オーバーレイ */
+#loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 1000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: var(--orange-main);
+}
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--orange-main);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
   </head>
   <body>
+    <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">祝日データを取得中...</div>
+</div>
     <div id="controls">
       <input type="number" id="yearInput" value="2026" /> 年
       <button onclick="generateCalendar()">生成・更新</button>
@@ -221,52 +248,75 @@
       /**
        * 内閣府の祝日CSVを取得・パース（デバッグログ付き）
        */
-      async function fetchHolidays() {
-        console.log("--- 祝日データ取得開始 ---");
+     async function fetchHolidays() {
+        const overlay = document.getElementById('loading-overlay');
+        overlay.style.display = 'flex';
+        
         try {
-          const targetUrl = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-          
-          console.log("リクエスト送信先:", proxyUrl);
-          const response = await fetch(proxyUrl);
-          
-          if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
+            const targetUrl = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
+            // 別のプロキシ（y-combinator系のcors-proxy、または shcors）を試行
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error('CORSプロキシエラー');
 
-          const data = await response.json();
-          const text = data.contents;
-          
-          if (!text) {
-            console.error("データの中身が空です。プロキシの制限の可能性があります。");
-            return;
-          }
-
-          const lines = text.split('\n');
-          console.log(`取得データ行数: ${lines.length}行`);
-          
-          holidays = {};
-          let count = 0;
-          for (let i = 1; i < lines.length; i++) {
-            const parts = lines[i].split(',');
-            if (parts.length >= 2) {
-              const dateStr = parts[0].trim(); // 例: "2026/1/1"
-              const name = parts[1].replace(/\r/g, '').trim();
-              
-              const d = new Date(dateStr);
-              if (!isNaN(d.getTime())) {
-                const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-                holidays[key] = name;
-                count++;
-              }
+            const arrayBuffer = await response.arrayBuffer();
+            const decoder = new TextDecoder('shift-jis');
+            const text = decoder.decode(arrayBuffer);
+            
+            const lines = text.split('\n');
+            holidays = {};
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',');
+                if (parts.length >= 2) {
+                    const d = new Date(parts[0].trim());
+                    if (!isNaN(d.getTime())) {
+                        const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+                        holidays[key] = parts[1].replace(/\r/g, '').trim();
+                    }
+                }
             }
-          }
-          console.log(`パース完了: ${count}件の祝日を登録しました`);
-          console.log("登録データサンプル (最初の5件):", Object.entries(holidays).slice(0, 5));
-          
+            console.log("祝日データ読込完了");
         } catch (e) {
-          console.error("【致命的エラー】祝日取得に失敗しました:", e.message);
+            console.error("取得失敗:", e);
+            document.getElementById('loading-text').innerText = "祝日データの取得に失敗しました。";
+            setTimeout(() => { overlay.style.display = 'none'; }, 2000);
+            return false;
         }
-        console.log("--- 祝日データ取得終了 ---");
-      }
+        overlay.style.display = 'none';
+        return true;
+    }
+
+    async function generateCalendar() {
+        const yearInput = document.getElementById("yearInput");
+        const btn = document.querySelector("button[onclick^='generateCalendar']");
+        const year = parseInt(yearInput.value);
+        
+        btn.disabled = true;
+        btn.innerText = "取得中...";
+
+        if (Object.keys(holidays).length === 0) {
+            const success = await fetchHolidays();
+            if (!success) {
+                btn.disabled = false;
+                btn.innerText = "生成・更新";
+                return;
+            }
+        }
+
+        const output = document.getElementById("output");
+        output.innerHTML = "";
+
+        for (let m = 1; m <= 12; m += 2) {
+            const page = document.createElement("div");
+            page.className = "page";
+            page.innerHTML = createMonthHtml(year, m) + createMonthHtml(year, m + 1);
+            output.appendChild(page);
+        }
+        
+        btn.disabled = false;
+        btn.innerText = "生成・更新";
+    }
 
       /**
        * 月データ生成（照合ログ付き）
@@ -342,25 +392,6 @@
                 <div class="holiday-name">${dayData.holiday}</div>
             </div>
         `;
-      }
-
-      async function generateCalendar() {
-        const year = parseInt(document.getElementById("yearInput").value);
-        
-        // 初回またはデータ空の場合に取得
-        if (Object.keys(holidays).length === 0) {
-          await fetchHolidays();
-        }
-
-        const output = document.getElementById("output");
-        output.innerHTML = "";
-
-        for (let m = 1; m <= 12; m += 2) {
-          const page = document.createElement("div");
-          page.className = "page";
-          page.innerHTML = createMonthHtml(year, m) + createMonthHtml(year, m + 1);
-          output.appendChild(page);
-        }
       }
 
       window.onload = generateCalendar;
