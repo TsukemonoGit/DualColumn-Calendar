@@ -1,46 +1,69 @@
-<div id="controls">
-  <input type="number" id="yearInput" value="2026" /> 年
-  <button onclick="generateCalendar()">生成・更新</button>
-  <button onclick="window.print()">印刷する</button>
-  <button onclick="toggleSettings()">⚙️ カスタマイズ</button>
-</div>
+<!doctype html>
+<html lang="ja">
 
-<!-- 設定パネル -->
-<div id="settings-panel" style="display: none;">
-  <h3>カスタマイズ設定</h3>
-  
-  <label>フォント:
-    <select id="fontSelect">
-      <option value="'ヒラギノ角ゴ Pro', sans-serif">ヒラギノ角ゴ</option>
-      <option value="'Yu Gothic', sans-serif">游ゴシック</option>
-      <option value="'Meiryo', sans-serif">メイリオ</option>
-      <option value="'MS Gothic', sans-serif">MSゴシック</option>
-    </select>
-  </label>
-  
-  <label>日付サイズ:
-    <input type="range" id="dateSize" min="16" max="40" value="24">
-    <span id="dateSizeValue">24px</span>
-  </label>
-  
-  <label>曜日サイズ:
-    <input type="range" id="weekSize" min="10" max="20" value="14">
-    <span id="weekSizeValue">14px</span>
-  </label>
-  
-  <label>祝日名サイズ:
-    <input type="range" id="holidaySize" min="8" max="16" value="11">
-    <span id="holidaySizeValue">11px</span>
-  </label>
-  
-  <label>日曜・祝日色:
-    <input type="color" id="sundayColor" value="#ffe0e0">
-  </label>
-  
-  <label>土曜日色:
-    <input type="color" id="saturdayColor" value="#e0e0ff">
-  </label>
-  
-  <button onclick="applySettings()">適用</button>
-  <button onclick="resetSettings()">リセット</button>
-</div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A4横・2ヶ月分割カレンダー生成</title>
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">祝日データを取得中...</div>
+  </div>
+  <div id="controls">
+    <input type="number" id="yearInput" value="2026" /> 年
+    <button onclick="generateCalendar()">生成・更新</button>
+    <button onclick="window.print()">印刷する</button>
+    <button onclick="toggleSettings()">⚙️ カスタマイズ</button>
+  </div>
+
+  <!-- 設定パネル -->
+  <div id="settings-panel" style="display: none;">
+    <h3>カスタマイズ設定</h3>
+
+    <label>フォント:
+      <select id="fontSelect">
+        <option value="'ヒラギノ角ゴ Pro', sans-serif">ヒラギノ角ゴ</option>
+        <option value="'Yu Gothic', sans-serif">游ゴシック</option>
+        <option value="'Meiryo', sans-serif">メイリオ</option>
+        <option value="'MS Gothic', sans-serif">MSゴシック</option>
+      </select>
+    </label>
+
+    <label>日付サイズ:
+      <input type="range" id="dateSize" min="16" max="40" value="24">
+      <span id="dateSizeValue">24px</span>
+    </label>
+
+    <label>曜日サイズ:
+      <input type="range" id="weekSize" min="10" max="20" value="14">
+      <span id="weekSizeValue">14px</span>
+    </label>
+
+    <label>祝日名サイズ:
+      <input type="range" id="holidaySize" min="8" max="16" value="11">
+      <span id="holidaySizeValue">11px</span>
+    </label>
+
+    <label>日曜・祝日色:
+      <input type="color" id="sundayColor" value="#ffe0e0">
+    </label>
+
+    <label>土曜日色:
+      <input type="color" id="saturdayColor" value="#e0e0ff">
+    </label>
+
+    <button onclick="applySettings()">適用</button>
+    <button onclick="resetSettings()">リセット</button>
+  </div>
+
+  <div id="output"></div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
