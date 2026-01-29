@@ -173,21 +173,24 @@ function applySettings() {
     const holidaySize = document.getElementById('holidaySize').value;
     const sundayColor = document.getElementById('sundayColor').value;
     const saturdayColor = document.getElementById('saturdayColor').value;
+    const holidayBgColor = document.getElementById('holidayBgColor').value; // 追加
     
-    // CSSカスタムプロパティで適用
-    document.documentElement.style.setProperty('--font-family', font);
-    document.documentElement.style.setProperty('--date-size', dateSize + 'px');
-    document.documentElement.style.setProperty('--week-size', weekSize + 'px');
-    document.documentElement.style.setProperty('--holiday-size', holidaySize + 'px');
-    document.documentElement.style.setProperty('--sunday-bg', sundayColor);
-    document.documentElement.style.setProperty('--saturday-bg', saturdayColor);
+    // CSSカスタムプロパティへ適用
+    const root = document.documentElement;
+    root.style.setProperty('--font-family', font);
+    root.style.setProperty('--date-size', dateSize + 'px');
+    root.style.setProperty('--week-size', weekSize + 'px');
+    root.style.setProperty('--holiday-size', holidaySize + 'px');
+    root.style.setProperty('--sun-red', sundayColor);
+    root.style.setProperty('--sat-blue', saturdayColor);
+    root.style.setProperty('--bg-holiday', holidayBgColor); // 祝日背景色を反映
     
     // 設定を保存
     localStorage.setItem('calendarSettings', JSON.stringify({
-        font, dateSize, weekSize, holidaySize, sundayColor, saturdayColor
+        font, dateSize, weekSize, holidaySize, sundayColor, saturdayColor, holidayBgColor
     }));
     
-    // カレンダー再生成
+    // カレンダー再生成（DOMを更新してスタイルを確実に適用）
     generateCalendar();
 }
 
@@ -197,8 +200,10 @@ function resetSettings() {
     document.getElementById('dateSize').value = 24;
     document.getElementById('weekSize').value = 14;
     document.getElementById('holidaySize').value = 11;
-    document.getElementById('sundayColor').value = '#ffe0e0';
-    document.getElementById('saturdayColor').value = '#e0e0ff';
+    document.getElementById('sundayColor').value = '#d32f2f'; // 文字色（赤）
+    document.getElementById('saturdayColor').value = '#1976d2'; // 文字色（青）
+    // 以下を追加：背景色の初期値をセット
+    document.getElementById('holidayBgColor').value = '#fff5f5'; 
     applySettings();
 }
 
@@ -213,6 +218,10 @@ function loadSettings() {
         document.getElementById('holidaySize').value = settings.holidaySize;
         document.getElementById('sundayColor').value = settings.sundayColor;
         document.getElementById('saturdayColor').value = settings.saturdayColor;
+        // 以下を追加：保存されていた祝日背景色をインポート
+        if (settings.holidayBgColor) {
+            document.getElementById('holidayBgColor').value = settings.holidayBgColor;
+        }
         applySettings();
     }
 }
