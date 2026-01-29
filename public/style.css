@@ -160,6 +160,7 @@ body {
   box-sizing: border-box;
   min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .day-row:last-child {
@@ -173,6 +174,7 @@ body {
   text-align: right;
   margin-right: 6px;
  font-size: var(--date-size) !important;
+ line-height: 1;
 }
 
 .day-week {
