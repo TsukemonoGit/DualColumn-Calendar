@@ -6,7 +6,12 @@ export default async function handler(req, res) {
             throw new Error('内閣府CSV取得失敗');
         }
         
-        const text = await response.text();
+        // ArrayBufferとして取得
+        const buffer = await response.arrayBuffer();
+        
+        // Shift_JISからUTF-8にデコード
+        const decoder = new TextDecoder('shift-jis');
+        const text = decoder.decode(buffer);
         
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate');
