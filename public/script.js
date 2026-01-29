@@ -161,4 +161,83 @@ function createDayRowHtml(dayData) {
     `;
 }
 
-window.onload = generateCalendar;
+function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function applySettings() {
+    const font = document.getElementById('fontSelect').value;
+    const dateSize = document.getElementById('dateSize').value;
+    const weekSize = document.getElementById('weekSize').value;
+    const holidaySize = document.getElementById('holidaySize').value;
+    const sundayColor = document.getElementById('sundayColor').value;
+    const saturdayColor = document.getElementById('saturdayColor').value;
+    const holidayBgColor = document.getElementById('holidayBgColor').value; // 追加
+    
+    // CSSカスタムプロパティへ適用
+    const root = document.documentElement;
+    root.style.setProperty('--font-family', font);
+    root.style.setProperty('--date-size', dateSize + 'px');
+    root.style.setProperty('--week-size', weekSize + 'px');
+    root.style.setProperty('--holiday-size', holidaySize + 'px');
+    root.style.setProperty('--sun-red', sundayColor);
+    root.style.setProperty('--sat-blue', saturdayColor);
+    root.style.setProperty('--bg-holiday', holidayBgColor); // 祝日背景色を反映
+    
+    // 設定を保存
+    localStorage.setItem('calendarSettings', JSON.stringify({
+        font, dateSize, weekSize, holidaySize, sundayColor, saturdayColor, holidayBgColor
+    }));
+    
+    // カレンダー再生成（DOMを更新してスタイルを確実に適用）
+    generateCalendar();
+}
+
+function resetSettings() {
+    localStorage.removeItem('calendarSettings');
+    document.getElementById('fontSelect').value = "'ヒラギノ角ゴ Pro', sans-serif";
+    document.getElementById('dateSize').value = 24;
+    document.getElementById('weekSize').value = 14;
+    document.getElementById('holidaySize').value = 11;
+    document.getElementById('sundayColor').value = '#d32f2f'; // 文字色（赤）
+    document.getElementById('saturdayColor').value = '#1976d2'; // 文字色（青）
+    // 以下を追加：背景色の初期値をセット
+    document.getElementById('holidayBgColor').value = '#fff5f5'; 
+    applySettings();
+}
+
+// ページ読み込み時に保存された設定を復元
+function loadSettings() {
+    const saved = localStorage.getItem('calendarSettings');
+    if (saved) {
+        const settings = JSON.parse(saved);
+        document.getElementById('fontSelect').value = settings.font;
+        document.getElementById('dateSize').value = settings.dateSize;
+        document.getElementById('weekSize').value = settings.weekSize;
+        document.getElementById('holidaySize').value = settings.holidaySize;
+        document.getElementById('sundayColor').value = settings.sundayColor;
+        document.getElementById('saturdayColor').value = settings.saturdayColor;
+        // 以下を追加：保存されていた祝日背景色をインポート
+        if (settings.holidayBgColor) {
+            document.getElementById('holidayBgColor').value = settings.holidayBgColor;
+        }
+        applySettings();
+    }
+}
+
+// スライダー連動
+document.getElementById('dateSize')?.addEventListener('input', (e) => {
+    document.getElementById('dateSizeValue').textContent = e.target.value + 'px';
+});
+document.getElementById('weekSize')?.addEventListener('input', (e) => {
+    document.getElementById('weekSizeValue').textContent = e.target.value + 'px';
+});
+document.getElementById('holidaySize')?.addEventListener('input', (e) => {
+    document.getElementById('holidaySizeValue').textContent = e.target.value + 'px';
+});
+
+window.onload = function() {
+    loadSettings();
+    generateCalendar();
+};
