@@ -7,51 +7,76 @@
      * Googleカレンダーの公開公開祝日カレンダーから取得
      * CORS制限がなく、GitHub Pages上でも直接取得可能
      */
-    async function fetchHolidays(year) {
-        const overlay = document.getElementById('loading-overlay');
-        overlay.style.display = 'flex';
-        
-        try {
-            // Google Calendar API の日本の祝日データ (公式ID: japanese__ja@holiday.calendar.google.com)
-            // 公開データをAPIキーなしで取得できるiCal形式をパース、または特定の年のデータを取得
-            const calendarId = 'japanese__ja@holiday.calendar.google.com';
-            const timeMin = `${year}-01-01T00:00:00Z`;
-            const timeMax = `${year}-12-31T23:59:59Z`;
-            
-            // APIキーなしでアクセス可能なパブリックな取得先
-            // ※本来はAPIキーが必要だが、GoogleはGoogle Calendarの埋め込み用URL等を提供している
-            // ここでは最も確実な「ical形式のパース」ではなく、Web上で公開されているJSONプロキシ（安定版）を使用
-            const url = `https://www.googleapis.com/calendar/v3/users/me/calendarList`; 
-            
-            // 修正：Google APIが直接叩けない場合を想定し、
-            // Nager.Date や Abstract API などの「祝日専用の無料API」に切り替えます
-            const nagerUrl = `https://date.nager.at/api/v3/PublicHolidays/${year}/JP`;
-            
-            const response = await fetch(nagerUrl);
-            if (!response.ok) throw new Error('API Response Error');
+    /**
+ * 祝日データの取得と、日本独自の休日ルールの計算
+ */
+async function fetchHolidays(year) {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.display = 'flex';
+    
+    try {
+        // 1. APIからベースとなる祝日を取得
+        const nagerUrl = `https://date.nager.at/api/v3/PublicHolidays/${year}/JP`;
+        const response = await fetch(nagerUrl);
+        if (!response.ok) throw new Error('API Response Error');
+        const data = await response.json();
 
-            const data = await response.json();
-            
-            // 既存の祝日データをリセット
-            holidays = {};
-            
-            data.forEach(holiday => {
-                // holiday.date は "YYYY-MM-DD" 形式
-                const d = new Date(holiday.date);
-                const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-                holidays[key] = holiday.localName;
-            });
+        holidays = {};
+        // 一旦、APIから来た祝日を格納
+        data.forEach(h => {
+            const d = new Date(h.date);
+            const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+            holidays[key] = h.localName;
+        });
 
-            console.log(`${year}年の祝日を${data.length}件取得しました`);
-        } catch (e) {
-            console.error("取得失敗:", e);
-            document.getElementById('loading-text').innerText = "祝日APIの取得に失敗しました。";
-            setTimeout(() => { overlay.style.display = 'none'; }, 2000);
-            return false;
+        // 2. 振替休日の判定 (祝日が日曜日の場合、翌平日を休みにする)
+        // ※ Nager.Dateが返してこない場合のための補完ロジック
+        Object.keys(holidays).forEach(dateKey => {
+            const d = new Date(dateKey);
+            if (d.getDay() === 0) { // 日曜日
+                let substitute = new Date(d);
+                let found = false;
+                while (!found) {
+                    substitute.setDate(substitute.getDate() + 1);
+                    const subKey = `${substitute.getFullYear()}/${substitute.getMonth() + 1}/${substitute.getDate()}`;
+                    if (!holidays[subKey]) {
+                        holidays[subKey] = "振替休日";
+                        found = true;
+                    }
+                }
+            }
+        });
+
+        // 3. 国民の休日の判定 (祝日と祝日の間に挟まれた平日を休みにする)
+        // 例: 敬老の日と秋分の日に挟まれた日
+        const sortedDates = Object.keys(holidays).map(k => new Date(k)).sort((a, b) => a - b);
+        for (let i = 0; i < sortedDates.length - 1; i++) {
+            const d1 = sortedDates[i];
+            const d2 = sortedDates[i+1];
+            const diff = (d2 - d1) / (1000 * 60 * 60 * 24);
+            
+            if (diff === 2) { // 1日だけ空いている
+                const target = new Date(d1);
+                target.setDate(target.getDate() + 1);
+                if (target.getDay() !== 0) { // 日曜でないなら
+                    const targetKey = `${target.getFullYear()}/${target.getMonth() + 1}/${target.getDate()}`;
+                    if (!holidays[targetKey]) {
+                        holidays[targetKey] = "国民の休日";
+                    }
+                }
+            }
         }
-        overlay.style.display = 'none';
-        return true;
+
+        console.log(`${year}年の祝日計算完了（振休・国民の休日含む）`);
+    } catch (e) {
+        console.error("取得失敗:", e);
+        document.getElementById('loading-text').innerText = "祝日データの取得に失敗しました。";
+        setTimeout(() => { overlay.style.display = 'none'; }, 2000);
+        return false;
     }
+    overlay.style.display = 'none';
+    return true;
+}
 
    async function generateCalendar() {
         const yearInput = document.getElementById("yearInput");
