@@ -218,15 +218,32 @@ function loadSettings() {
         document.getElementById('holidaySize').value = settings.holidaySize;
         document.getElementById('sundayColor').value = settings.sundayColor;
         document.getElementById('saturdayColor').value = settings.saturdayColor;
-        // 以下を追加：保存されていた祝日背景色をインポート
+        
         if (settings.holidayBgColor) {
             document.getElementById('holidayBgColor').value = settings.holidayBgColor;
         }
+
+        // スライダーの横のテキスト（24px等）も復元した値に更新
+        updateSliderLabels(settings);
+
+        // 重要：applySettingsを呼ぶことで、その中のgenerateCalendarも実行される
         applySettings();
+        return true; 
     }
+    return false;
 }
 
-// スライダー連動
+// スライダーのラベル表示を一括更新する補助関数
+function updateSliderLabels(settings) {
+    if (document.getElementById('dateSizeValue')) 
+        document.getElementById('dateSizeValue').textContent = settings.dateSize + 'px';
+    if (document.getElementById('weekSizeValue')) 
+        document.getElementById('weekSizeValue').textContent = settings.weekSize + 'px';
+    if (document.getElementById('holidaySizeValue')) 
+        document.getElementById('holidaySizeValue').textContent = settings.holidaySize + 'px';
+}
+
+// スライダー連動（数値表示のリアルタイム更新）
 document.getElementById('dateSize')?.addEventListener('input', (e) => {
     document.getElementById('dateSizeValue').textContent = e.target.value + 'px';
 });
@@ -237,7 +254,14 @@ document.getElementById('holidaySize')?.addEventListener('input', (e) => {
     document.getElementById('holidaySizeValue').textContent = e.target.value + 'px';
 });
 
+// ページ読み込み時の処理
 window.onload = function() {
-    loadSettings();
-    generateCalendar();
+    // 1. まず設定を読み込む
+    const hasSettings = loadSettings();
+    
+    // 2. 設定がなかった場合（初回訪問）のみ、手動でカレンダーを生成する
+    // 設定があった場合は、loadSettings -> applySettings -> generateCalendar の順ですでに実行されている
+    if (!hasSettings) {
+        generateCalendar();
+    }
 };
