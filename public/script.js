@@ -161,4 +161,74 @@ function createDayRowHtml(dayData) {
     `;
 }
 
-window.onload = generateCalendar;
+function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function applySettings() {
+    const font = document.getElementById('fontSelect').value;
+    const dateSize = document.getElementById('dateSize').value;
+    const weekSize = document.getElementById('weekSize').value;
+    const holidaySize = document.getElementById('holidaySize').value;
+    const sundayColor = document.getElementById('sundayColor').value;
+    const saturdayColor = document.getElementById('saturdayColor').value;
+    
+    // CSSカスタムプロパティで適用
+    document.documentElement.style.setProperty('--font-family', font);
+    document.documentElement.style.setProperty('--date-size', dateSize + 'px');
+    document.documentElement.style.setProperty('--week-size', weekSize + 'px');
+    document.documentElement.style.setProperty('--holiday-size', holidaySize + 'px');
+    document.documentElement.style.setProperty('--sunday-bg', sundayColor);
+    document.documentElement.style.setProperty('--saturday-bg', saturdayColor);
+    
+    // 設定を保存
+    localStorage.setItem('calendarSettings', JSON.stringify({
+        font, dateSize, weekSize, holidaySize, sundayColor, saturdayColor
+    }));
+    
+    // カレンダー再生成
+    generateCalendar();
+}
+
+function resetSettings() {
+    localStorage.removeItem('calendarSettings');
+    document.getElementById('fontSelect').value = "'ヒラギノ角ゴ Pro', sans-serif";
+    document.getElementById('dateSize').value = 24;
+    document.getElementById('weekSize').value = 14;
+    document.getElementById('holidaySize').value = 11;
+    document.getElementById('sundayColor').value = '#ffe0e0';
+    document.getElementById('saturdayColor').value = '#e0e0ff';
+    applySettings();
+}
+
+// ページ読み込み時に保存された設定を復元
+function loadSettings() {
+    const saved = localStorage.getItem('calendarSettings');
+    if (saved) {
+        const settings = JSON.parse(saved);
+        document.getElementById('fontSelect').value = settings.font;
+        document.getElementById('dateSize').value = settings.dateSize;
+        document.getElementById('weekSize').value = settings.weekSize;
+        document.getElementById('holidaySize').value = settings.holidaySize;
+        document.getElementById('sundayColor').value = settings.sundayColor;
+        document.getElementById('saturdayColor').value = settings.saturdayColor;
+        applySettings();
+    }
+}
+
+// スライダー連動
+document.getElementById('dateSize')?.addEventListener('input', (e) => {
+    document.getElementById('dateSizeValue').textContent = e.target.value + 'px';
+});
+document.getElementById('weekSize')?.addEventListener('input', (e) => {
+    document.getElementById('weekSizeValue').textContent = e.target.value + 'px';
+});
+document.getElementById('holidaySize')?.addEventListener('input', (e) => {
+    document.getElementById('holidaySizeValue').textContent = e.target.value + 'px';
+});
+
+window.onload = function() {
+    loadSettings();
+    generateCalendar();
+};
